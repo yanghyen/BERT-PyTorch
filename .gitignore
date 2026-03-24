@@ -1,0 +1,12 @@
+__pycache__
+*.pt
+*.json
+runs/
+weights/
+data/
+
+wandb/
+*pt
+*csv
+.cursor/
+.conda/
