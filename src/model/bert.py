@@ -225,6 +225,36 @@ class BERTLM(nn.Module):
         return self.next_sentence(x), self.mask_lm(x)
 
 
+class BERTLM_NoNSP(nn.Module):
+    """NSP(Next Sentence Prediction) 없이 MLM(Masked Language Model)만 사용하는 BERT"""
+    def __init__(self, bert: BERT):
+        super().__init__()
+        self.bert = bert
+        # embedding weight를 직접 넘김
+        self.mask_lm = MaskedLanguageModel(self.bert.hidden, self.bert.inputEmbedding.token.embedding.weight)
+
+        # MLM Head만 BERT-style 초기화를 적용 (decoder weight는 bert embedding과 weight-tying이라 제외).
+        def _init_heads_weights(module):
+            if module is self.mask_lm.decoder:
+                return
+            if isinstance(module, (nn.Linear, nn.Embedding)):
+                nn.init.trunc_normal_(module.weight, mean=0.0, std=0.02, a=-0.04, b=0.04)
+                if isinstance(module, nn.Linear) and module.bias is not None:
+                    nn.init.zeros_(module.bias)
+            elif isinstance(module, LayerNorm):
+                nn.init.ones_(module.gamma)
+                nn.init.zeros_(module.beta)
+
+        self.mask_lm.apply(_init_heads_weights)
+
+    def forward(self, x, segment_label=None):
+        # segment_label은 호환성을 위해 받지만 사용하지 않음 (단일 문장 처리)
+        if segment_label is None:
+            segment_label = torch.zeros_like(x)
+        x = self.bert(x, segment_label)
+        return self.mask_lm(x)
+
+
 class NextSentencePrediction(nn.Module):
     def __init__(self, hidden, dropout=0.1):
         super().__init__()

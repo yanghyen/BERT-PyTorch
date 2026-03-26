@@ -29,14 +29,14 @@ SRC_ROOT = Path(__file__).resolve().parent.parent
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-# `train.py` 바로 옆에 있는 `train_config.py`를 import 하기 위한 경로 추가
+# `train_no_nsp.py` 바로 옆에 있는 `train_config.py`를 import 하기 위한 경로 추가
 TRAIN_DIR = Path(__file__).resolve().parent
 if str(TRAIN_DIR) not in sys.path:
     sys.path.insert(0, str(TRAIN_DIR))
 
-import train_config
+import train_config_no_nsp as train_config
 
-from model.bert import BERT, BERTLM, BERTLM_NoNSP  # noqa: E402
+from model.bert import BERT, BERTLM_NoNSP  # noqa: E402
 
 
 def seed_everything(seed: int, deterministic: bool = True) -> None:
@@ -130,72 +130,7 @@ def mask_tokens(
     return inputs, labels
 
 
-# --- 4) DataLoader용 Dataset 클래스 ---
-class BertPretrainDataset(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        tokenized_dataset,
-        tokenizer,
-        *,
-        seq_len: int | None = None,
-        return_original_input_ids: bool = True,
-    ):
-        self.dataset = tokenized_dataset
-        self.tokenizer = tokenizer
-        self.seq_len = seq_len
-        self.return_original_input_ids = return_original_input_ids
-
-        # option b를 통해 저장된 컬럼이 있으면 그걸 사용(=tokenizer.get_special_tokens_mask 호출 제거)
-        self.has_special_tokens_mask = "special_tokens_mask" in getattr(
-            tokenized_dataset, "column_names", []
-        )
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, idx):
-        row = self.dataset[idx]
-        if self.seq_len is None:
-            input_ids_list = row["input_ids"]
-            token_type_ids_list = row["token_type_ids"]
-            attention_mask_list = row["attention_mask"]
-            special_tokens_mask_list = (
-                row["special_tokens_mask"] if self.has_special_tokens_mask else None
-            )
-        else:
-            input_ids_list = row["input_ids"][: self.seq_len]
-            token_type_ids_list = row["token_type_ids"][: self.seq_len]
-            attention_mask_list = row["attention_mask"][: self.seq_len]
-            special_tokens_mask_list = (
-                row["special_tokens_mask"][: self.seq_len]
-                if self.has_special_tokens_mask
-                else None
-            )
-
-        input_ids = torch.tensor(input_ids_list, dtype=torch.long)
-        original_input_ids = input_ids.clone() if self.return_original_input_ids else None
-        token_type_ids = torch.tensor(token_type_ids_list, dtype=torch.long)
-        attention_mask = torch.tensor(attention_mask_list, dtype=torch.long)
-        nsp_label = torch.tensor(row["nsp_label"], dtype=torch.long)
-
-        special_tokens_mask_tensor = (
-            torch.tensor(special_tokens_mask_list, dtype=torch.bool)
-            if special_tokens_mask_list is not None
-            else None
-        )
-
-        out = {
-            "input_ids": input_ids,
-            "token_type_ids": token_type_ids,
-            "attention_mask": attention_mask,
-            "special_tokens_mask": special_tokens_mask_tensor,
-            "nsp_labels": nsp_label,
-        }
-        if self.return_original_input_ids:
-            out["original_input_ids"] = original_input_ids
-        return out
-
-
+# --- 4) DataLoader용 Dataset 클래스 (NSP 없음) ---
 class BertPretrainDatasetNoNSP(torch.utils.data.Dataset):
     """NSP 없이 MLM만 사용하는 BERT 사전학습용 데이터셋"""
     def __init__(
@@ -259,7 +194,7 @@ class BertPretrainDatasetNoNSP(torch.utils.data.Dataset):
         return out
 
 
-# --- 5) 학습 루프 ---
+# --- 5) 학습 루프 (NSP 없음) ---
 if __name__ == "__main__":
     config = train_config.TRAIN_CONFIG
     seed = int(config.get("seed", 42))
@@ -288,7 +223,7 @@ if __name__ == "__main__":
     short_seq_prob = float(config.get("short_seq_prob", 0.9))
     batch_size_long_cfg = config.get("batch_size_long", None)
 
-    print("train process start")
+    print("NSP 없는 BERT 사전학습 시작")
     repo_root = Path(__file__).resolve().parent.parent.parent
     dataset_path = (repo_root / dataset_dir).resolve()
     if not dataset_path.exists():
@@ -311,7 +246,8 @@ if __name__ == "__main__":
         torch.backends.cudnn.allow_tf32 = True
         torch.set_float32_matmul_precision("high")
 
-    model = BERTLM(BERT(vocab_size=vocab_size)).to(device)
+    # NSP 없는 BERT 모델 사용
+    model = BERTLM_NoNSP(BERT(vocab_size=vocab_size)).to(device)
     # 모델이 실제로 기대한 BERT-Base 스펙인지 빠르게 검증
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -319,7 +255,7 @@ if __name__ == "__main__":
         f"Model params: total={total_params/1e6:.2f}M, trainable={trainable_params/1e6:.2f}M",
         flush=True,
     )
-    # BERTLM 내부에 bert(백본) 보유
+    # BERTLM_NoNSP 내부에 bert(백본) 보유
     if hasattr(model, "bert"):
         print(
             f"BERT config: hidden={model.bert.hidden}, layers={model.bert.n_layers}, heads={model.bert.attn_heads}",
@@ -328,20 +264,19 @@ if __name__ == "__main__":
     bert_spec_dir = (
         repo_root
         / "runs"
-        / f"L{model.bert.n_layers}_H{model.bert.hidden}_A{model.bert.attn_heads}_seed{seed}"
+        / f"L{model.bert.n_layers}_H{model.bert.hidden}_A{model.bert.attn_heads}_seed{seed}_NoNSP"
     )
     bert_spec_dir.mkdir(parents=True, exist_ok=True)
 
     metrics_csv_path = bert_spec_dir / "metrics.csv"
+    # NSP 관련 메트릭 제거
     metrics_fieldnames = [
         "step",
         "epoch",
         "lr",
         "train_loss",
         "mlm_loss",
-        "nsp_loss",
         "train_mlm_acc",
-        "train_nsp_acc",
         "step_time",
         "gpu_mem_gb",
     ]
@@ -370,7 +305,6 @@ if __name__ == "__main__":
         num_training_steps=max_steps,
     )
     criterion_mlm = nn.CrossEntropyLoss(ignore_index=-100)
-    criterion_nsp = nn.CrossEntropyLoss()
 
     # curriculum을 쓰려면 기본 데이터가 long 길이(>=512)로 만들어져 있어야 합니다.
     # (128로 생성된 instances로는 512를 만들 수 없음)
@@ -404,13 +338,13 @@ if __name__ == "__main__":
     if use_curriculum:
         # short/long 데이터셋을 분리해 DataLoader를 따로 만들면
         # 128-step에서는 실제로 텐서가 128 길이라 속도/메모리 이득이 납니다.
-        short_ds = BertPretrainDataset(
+        short_ds = BertPretrainDatasetNoNSP(
             tokenized_datasets,
             tokenizer,
             seq_len=seq_len_short,
             return_original_input_ids=debug_masking,
         )
-        long_ds = BertPretrainDataset(
+        long_ds = BertPretrainDatasetNoNSP(
             tokenized_datasets,
             tokenizer,
             seq_len=seq_len_long,
@@ -449,7 +383,7 @@ if __name__ == "__main__":
         short_iter = iter(short_loader)
         long_iter = iter(long_loader)
     else:
-        train_dataset = BertPretrainDataset(
+        train_dataset = BertPretrainDatasetNoNSP(
             tokenized_datasets,
             tokenizer,
             return_original_input_ids=debug_masking,
@@ -490,7 +424,7 @@ if __name__ == "__main__":
     else:
         steps_per_epoch = max(1, len(train_loader))
 
-    pbar = tqdm(total=max_steps, desc="Training (steps)")
+    pbar = tqdm(total=max_steps, desc="Training (steps, No NSP)")
     with metrics_csv_path.open("a", newline="", encoding="utf-8") as metrics_f:
         metrics_writer = csv.DictWriter(metrics_f, fieldnames=metrics_fieldnames)
 
@@ -534,7 +468,6 @@ if __name__ == "__main__":
             input_ids, mlm_labels = mask_tokens(
                 input_ids, tokenizer, special_tokens_mask=special_tokens_mask
             )
-            nsp_labels = batch["nsp_labels"].to(device, non_blocking=True)
 
             if debug_masking and global_step < debug_masking_batches:
                 # mlm_labels != -100  => masked_indices
@@ -582,14 +515,15 @@ if __name__ == "__main__":
                 )
 
             with autocast():
-                pred_nsp, pred_mlm = model(input_ids, token_type_ids)
+                # NSP 없는 모델은 MLM 결과만 반환
+                pred_mlm = model(input_ids, token_type_ids)
 
                 mlm_loss = criterion_mlm(
                     pred_mlm.view(-1, vocab_size), mlm_labels.view(-1)
                 )
-                nsp_loss = criterion_nsp(pred_nsp, nsp_labels)
 
-                loss = mlm_loss + nsp_loss
+                # NSP 손실 없이 MLM 손실만 사용
+                loss = mlm_loss
 
             scaler.scale(loss).backward()
             if grad_clip_norm is not None and grad_clip_norm > 0:
@@ -624,10 +558,6 @@ if __name__ == "__main__":
                     else:
                         train_mlm_acc = 0.0
 
-                    nsp_pred = pred_nsp.argmax(dim=-1)
-                    nsp_correct = int((nsp_pred == nsp_labels).sum().item())
-                    train_nsp_acc = float(nsp_correct / nsp_labels.numel())
-
                 metrics_writer.writerow(
                     {
                         "step": global_step,
@@ -635,9 +565,7 @@ if __name__ == "__main__":
                         "lr": float(optimizer.param_groups[0]["lr"]),
                         "train_loss": float(loss.item()),
                         "mlm_loss": float(mlm_loss.item()),
-                        "nsp_loss": float(nsp_loss.item()),
                         "train_mlm_acc": train_mlm_acc,
-                        "train_nsp_acc": train_nsp_acc,
                         "step_time": float(step_time),
                         "gpu_mem_gb": gpu_mem_gb,
                     }
@@ -656,7 +584,7 @@ if __name__ == "__main__":
                 pbar.set_postfix(loss=float(loss.item()))
 
     pbar.close()
-    print(f"Training finished at global_step={global_step}/{max_steps}")
+    print(f"NSP 없는 학습 완료: global_step={global_step}/{max_steps}")
     # 저장 경로는 사용자 인자 없이, 모델 스펙 + seed 기준으로만 고정합니다.
     if not hasattr(model, "bert"):
         raise AttributeError("현재 model 객체에 bert 속성이 없습니다. (저장 규칙 확인 필요)")
@@ -664,8 +592,9 @@ if __name__ == "__main__":
     bert_spec_dir = (
         repo_root
         / "runs"
-        / f"L{model.bert.n_layers}_H{model.bert.hidden}_A{model.bert.attn_heads}_seed{seed}"
+        / f"L{model.bert.n_layers}_H{model.bert.hidden}_A{model.bert.attn_heads}_seed{seed}_NoNSP"
     )
     save_path = bert_spec_dir / "model_full.pth"
     save_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(model, save_path)
+    print(f"NSP 없는 모델 저장 완료: {save_path}")

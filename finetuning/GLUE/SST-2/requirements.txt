@@ -1,0 +1,33 @@
+# BERT SST-2 파인튜닝 필요 패키지
+
+# 딥러닝 프레임워크
+torch>=1.12.0
+torchvision>=0.13.0
+
+# 자연어 처리
+transformers>=4.20.0
+tokenizers>=0.12.0
+
+# 데이터 처리
+numpy>=1.21.0
+pandas>=1.4.0
+
+# 머신러닝 메트릭
+scikit-learn>=1.1.0
+
+# 시각화
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# 진행률 표시
+tqdm>=4.64.0
+
+# 설정 파일 처리
+PyYAML>=6.0
+
+# 로깅 및 실험 추적 (선택사항)
+wandb>=0.12.0
+
+# 유틸리티
+requests>=2.28.0
+urllib3>=1.26.0
