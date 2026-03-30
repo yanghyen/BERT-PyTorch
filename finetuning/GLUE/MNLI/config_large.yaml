@@ -1,0 +1,61 @@
+# BERT MNLI 파인튜닝 설정 파일 - BERT Large 모델
+
+# 모델 설정
+model:
+  model_path: "/home/ssai/Workspace/BERT_repo/runs/L12_H1024_A16_seed42/model_full.pth"  # BERT Large 모델
+  vocab_size: 30522
+  hidden_size: 1024  # BERT Large 설정
+  num_layers: 12     # 실제로는 24이지만 현재 모델이 L12이므로 12로 설정
+  num_attention_heads: 16  # BERT Large 설정
+  dropout: 0.1
+
+# 데이터 설정
+data:
+  data_dir: "./data/MNLI"
+  max_length: 256  # MNLI는 두 문장이므로 더 긴 시퀀스 필요
+  batch_size: 8    # BERT Large는 메모리 사용량이 크므로 작은 배치 크기
+  num_workers: 4
+  tokenizer_name: "bert-base-uncased"
+
+# 훈련 설정
+training:
+  learning_rate: 1.0e-5  # BERT Large는 더 작은 학습률 사용
+  weight_decay: 0.01
+  num_epochs: 3
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  early_stopping_patience: 3
+
+# 평가 설정
+evaluation:
+  eval_steps: 500
+  save_steps: 1000
+
+# 디렉토리 설정
+directories:
+  save_dir: "./finetuning_results/large/checkpoints"
+  log_dir: "./finetuning_results/large/logs"
+  eval_dir: "./finetuning_results/large/evaluation"
+
+# 기타 설정
+misc:
+  seed: 42
+  mode: "both"  # train, eval, both
+  use_wandb: false
+  wandb_project: "bert-large-mnli-finetuning"
+  checkpoint_path: null  # eval 모드용 체크포인트 경로
+
+# 하이퍼파라미터 튜닝을 위한 대안 설정들
+alternatives:
+  learning_rates: [5e-6, 1e-5, 2e-5, 3e-5]  # Large 모델용 더 작은 학습률
+  batch_sizes: [4, 8, 16]  # 메모리 제약으로 더 작은 배치 크기
+  num_epochs: [2, 3, 4, 5]
+  warmup_ratios: [0.06, 0.1, 0.2]
+  max_lengths: [128, 256, 384]
+
+# MNLI 특화 설정
+mnli_specific:
+  num_labels: 3  # entailment, contradiction, neutral
+  label_names: ["contradiction", "neutral", "entailment"]
+  use_matched_dev: true  # matched dev set 사용 여부
+  use_mismatched_dev: true  # mismatched dev set 사용 여부

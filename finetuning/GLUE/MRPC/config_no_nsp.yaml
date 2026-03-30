@@ -1,0 +1,65 @@
+# BERT MRPC 파인튜닝 설정 파일 - BERT Base No NSP 모델
+
+# 모델 설정
+model:
+  model_path: "/home/ssai/Workspace/BERT_repo/runs/L12_H768_A12_seed42_NoNSP/model_full.pth"  # BERT Base No NSP 모델
+  vocab_size: 30522
+  hidden_size: 768
+  num_layers: 12
+  num_attention_heads: 12
+  dropout: 0.1
+
+# 데이터 설정
+data:
+  data_dir: "./data/MRPC"
+  max_length: 128  # MRPC는 두 문장이지만 상대적으로 짧음
+  batch_size: 32
+  num_workers: 4
+  tokenizer_name: "bert-base-uncased"
+
+# 훈련 설정
+training:
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  num_epochs: 5
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  early_stopping_patience: 5
+
+# 평가 설정
+evaluation:
+  eval_steps: 100
+  save_steps: 200
+
+# 디렉토리 설정
+directories:
+  save_dir: "./finetuning_results/MRPC/checkpoints"
+  log_dir: "./finetuning_results/MRPC/logs"
+  eval_dir: "./finetuning_results/MRPC/evaluation"
+
+# 기타 설정
+misc:
+  seed: 123
+  mode: "both"  # train, eval, both
+  use_wandb: false
+  wandb_project: "bert-base-no-nsp-mrpc-finetuning"
+  checkpoint_path: null  # eval 모드용 체크포인트 경로
+
+# 하이퍼파라미터 튜닝을 위한 대안 설정들
+alternatives:
+  learning_rates: [1e-5, 2e-5, 3e-5, 5e-5]
+  batch_sizes: [16, 32, 64]
+  num_epochs: [3, 5, 7, 10]
+  warmup_ratios: [0.06, 0.1, 0.2]
+  max_lengths: [64, 128, 256]
+
+# MRPC 특화 설정
+mrpc_specific:
+  num_labels: 2  # not_paraphrase, paraphrase
+  label_names: ["not_paraphrase", "paraphrase"]
+  use_f1_for_best_model: true  # F1 점수를 기준으로 최고 모델 선택
+  class_weights: null  # 클래스 불균형이 있는 경우 가중치 설정
+
+# No NSP 모델 특화 설정
+no_nsp_specific:
+  note: "이 모델은 Next Sentence Prediction 태스크 없이 훈련되었습니다."

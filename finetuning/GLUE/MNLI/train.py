@@ -15,7 +15,10 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 import logging
 from tqdm import tqdm
-import wandb
+try:
+    import wandb
+except ImportError:
+    wandb = None
 
 from finetuning_model import BERTForSequenceClassification, create_classification_model
 from dataset import create_data_loaders, create_matched_mismatched_loaders
@@ -88,7 +91,10 @@ class BERTTrainer:
         self.setup_logging()
         
         # wandb 초기화
-        if use_wandb:
+        if use_wandb and wandb is None:
+            self.logger.warning("wandb가 설치되어 있지 않아 use_wandb=False로 진행합니다.")
+            self.use_wandb = False
+        elif use_wandb:
             wandb.init(
                 project=project_name,
                 config={
@@ -121,7 +127,12 @@ class BERTTrainer:
         total_correct = 0
         total_samples = 0
         
-        progress_bar = tqdm(self.train_loader, desc=f'Epoch {epoch}')
+        progress_bar = tqdm(
+            self.train_loader,
+            desc=f'Epoch {epoch}',
+            dynamic_ncols=True,
+            mininterval=0.5,
+        )
         
         for batch_idx, batch in enumerate(progress_bar):
             # 데이터를 디바이스로 이동
@@ -163,9 +174,10 @@ class BERTTrainer:
             
             # 진행률 표시 업데이트
             current_lr = self.scheduler.get_last_lr()[0]
+            running_acc = (total_correct / total_samples) if total_samples > 0 else 0.0
             progress_bar.set_postfix({
-                'Loss': f'{loss.item():.4f}',
-                'Acc': f'{total_correct/total_samples:.4f}',
+                'L': f'{loss.item():.3f}',
+                'A': f'{running_acc:.3f}',
                 'LR': f'{current_lr:.2e}'
             })
             
@@ -215,7 +227,12 @@ class BERTTrainer:
         all_labels = []
         
         with torch.no_grad():
-            for batch in tqdm(data_loader, desc=f'Validation ({desc})'):
+            for batch in tqdm(
+                data_loader,
+                desc=f'Validation ({desc})',
+                dynamic_ncols=True,
+                mininterval=0.5,
+            ):
                 # 데이터를 디바이스로 이동
                 input_ids = batch['input_ids'].to(self.device)
                 attention_mask = batch['attention_mask'].to(self.device)

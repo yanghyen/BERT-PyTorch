@@ -425,7 +425,15 @@ def main():
     set_seed(args.seed)
     
     # seed 기반 실행 ID로 디렉토리 구조 업데이트
-    run_id = f"seed{args.seed}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    # 특정 설정 파일(config_large/config_no_nsp)인 경우 BERT 모드를 경로에 포함
+    config_name = os.path.basename(cmd_args.config)
+    mode_suffix = ""
+    if config_name == "config_large.yaml":
+        mode_suffix = "_large"
+    elif config_name == "config_no_nsp.yaml":
+        mode_suffix = "_no_nsp"
+
+    run_id = f"seed{args.seed}{mode_suffix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     args.save_dir = os.path.join(args.save_dir, run_id)
     args.log_dir = os.path.join(args.log_dir, run_id)
     args.eval_dir = os.path.join(args.eval_dir, run_id)

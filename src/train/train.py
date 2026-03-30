@@ -490,7 +490,12 @@ if __name__ == "__main__":
     else:
         steps_per_epoch = max(1, len(train_loader))
 
-    pbar = tqdm(total=max_steps, desc="Training (steps)")
+    pbar = tqdm(
+        total=max_steps,
+        desc="Training (steps)",
+        dynamic_ncols=True,
+        mininterval=0.5,
+    )
     with metrics_csv_path.open("a", newline="", encoding="utf-8") as metrics_f:
         metrics_writer = csv.DictWriter(metrics_f, fieldnames=metrics_fieldnames)
 
@@ -653,7 +658,7 @@ if __name__ == "__main__":
 
             pbar.update(1)
             if global_step % 20 == 0:
-                pbar.set_postfix(loss=float(loss.item()))
+                pbar.set_postfix({"L": f"{loss.item():.3f}"})
 
     pbar.close()
     print(f"Training finished at global_step={global_step}/{max_steps}")
