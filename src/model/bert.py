@@ -159,7 +159,7 @@ class EncoderBlock(nn.Module):
 
 
 class BERT(nn.Module):
-    def __init__(self, vocab_size, hidden=1024, n_layers=12, attn_heads=16, dropout=0.1):
+    def __init__(self, vocab_size, hidden=1024, n_layers=24, attn_heads=16, dropout=0.1):
         super().__init__()
         self.hidden = hidden
         self.n_layers = n_layers

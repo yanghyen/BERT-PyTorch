@@ -2,10 +2,10 @@
 
 # 모델 설정
 model:
-  model_path: "/home/ssai/Workspace/BERT_repo/runs/L12_H1024_A16_seed42/model_full.pth"  # BERT Large 모델
+  model_path: "/home/ssai/Workspace/BERT_repo/runs/L24_H1024_A16_seed42/model_full.pth"  # BERT Large 모델
   vocab_size: 30522
   hidden_size: 1024  # BERT Large 설정
-  num_layers: 12     # 실제로는 24이지만 현재 모델이 L12이므로 12로 설정
+  num_layers: 24     # 실제로는 24이지만 현재 모델이 L12이므로 12로 설정
   num_attention_heads: 16  # BERT Large 설정
   dropout: 0.1
 
@@ -13,13 +13,13 @@ model:
 data:
   data_dir: "./data/QNLI"
   max_length: 512  # QNLI는 질문+문단이므로 더 긴 시퀀스 필요
-  batch_size: 8    # BERT Large는 메모리 사용량이 커서 배치 크기 축소
+  batch_size: 16   # base와 동일한 배치 크기 사용
   num_workers: 4
   tokenizer_name: "bert-base-uncased"
 
 # 훈련 설정
 training:
-  learning_rate: 1.0e-5  # BERT Large는 더 작은 학습률 사용
+  learning_rate: 2.0e-5  # base와 동일한 학습률 사용
   weight_decay: 0.01
   num_epochs: 3
   warmup_ratio: 0.1

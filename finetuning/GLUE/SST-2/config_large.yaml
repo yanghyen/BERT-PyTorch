@@ -13,13 +13,13 @@ model:
 data:
   data_dir: "./data/SST-2"
   max_length: 128
-  batch_size: 16   # BERT Large는 메모리 사용량이 커서 배치 크기 축소
+  batch_size: 32   # BERT Large도 base와 동일한 배치 크기 사용
   num_workers: 4
   tokenizer_name: "bert-base-uncased"
 
 # 훈련 설정
 training:
-  learning_rate: 1.0e-5  # BERT Large는 더 작은 학습률 사용
+  learning_rate: 2.0e-5  # base와 동일한 학습률 사용
   weight_decay: 0.01
   num_epochs: 3
   warmup_ratio: 0.1

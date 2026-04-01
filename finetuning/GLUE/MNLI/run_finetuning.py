@@ -341,6 +341,26 @@ def evaluate_model_main(args, logger, checkpoint_path=None):
         logger.info(f"  Mismatched 정확도: {comparison['mismatched']['metrics']['accuracy']:.4f}")
         logger.info(f"  Mismatched F1: {comparison['mismatched']['metrics']['f1']:.4f}")
         logger.info(f"  성능 차이: {comparison['performance_gap']['accuracy_difference']:.4f}")
+
+        # evaluation_results.json도 matched/mm 모두 포함해 저장
+        eval_results = {
+            'checkpoint_path': checkpoint_path,
+            'val_results': {
+                'matched': {
+                    'metrics': comparison['matched']['metrics'],
+                    'loss': comparison['matched']['loss'],
+                },
+                'mismatched': {
+                    'metrics': comparison['mismatched']['metrics'],
+                    'loss': comparison['mismatched']['loss'],
+                },
+                'performance_gap': comparison.get('performance_gap', {}),
+            },
+            'args': vars(args),
+        }
+        results_path = os.path.join(args.eval_dir, 'evaluation_results.json')
+        with open(results_path, 'w') as f:
+            json.dump(eval_results, f, indent=2)
         
     else:
         # Matched만 평가
@@ -420,6 +440,10 @@ def main():
     for key, value in vars(cmd_args).items():
         if value is not None and key != 'config':
             setattr(args, key, value)
+
+    # MNLI: 실행 시 matched(m) / mismatched(mm) dev를 모두 평가하도록 강제
+    # (아래 train/eval 분기에서 args.evaluate_both_dev 를 사용)
+    args.evaluate_both_dev = True
     
     # 시드 설정
     set_seed(args.seed)
